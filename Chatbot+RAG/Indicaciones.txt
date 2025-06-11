@@ -1,0 +1,9 @@
+-Carga el notebook en colab
+-En la sección de archivos, sube la carpeta corpus_data, o crea la carpeta corpus_data y sube el archivo dentro de esa carpeta
+-Ten un secret con token de OpenAI con el nombre "openapikey"
+
+Ejemplo de prompt:
+Necesito que generes un ejemplo de programa básico para el RiceLake 1280. El programa debe hacer lo siguiente:
+- Crear un usuario en la base de datos
+- Los datos del usuario son: Id (numero), Nombre (texto), Apellido (texto), Edad (nombre)
+- Se asume que existe un widget (btn1) que al tocarlo ingresa un dato de ejemplo ("Pepe", "Cardenas", 35). El Id es autogenerado

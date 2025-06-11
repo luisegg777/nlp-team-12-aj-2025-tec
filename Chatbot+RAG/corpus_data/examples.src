@@ -1,0 +1,147 @@
+-- Reglas generales:
+-- 0. Todo se basa en la guía de programación: programming-guide-irite.pdf
+-- 1. Los nombres de variables globales deben ser en mayusculas con guiones bajos
+-- 2. Los nombres de tipos, funciones, procedimientos deben ser en PascalCase
+-- 4. Los nombres de variables no son case sensitive,
+-- por lo que definir una variable con el mismo nombre del tipo generará un error
+-- 5. Las funciones de llamado a la base de datos están definidos en la guía de programación
+-- 6. Los nombres de funciones deben ser únicos ya que se compilan en un solo archivo
+-- 7. Las variables locales se definen con el prefijo l (unico caso sobre se usa camelCase)
+
+--Nombre de archivo: Variables.iri
+MSJ_GEN_SAVE_OK : string := "Se Grabó Correctamente";
+MSJ_GEN_SAVE_XID : string := "No se pudo Obtener ID";
+MSJ_GEN_SAVE_XER : string := "No se pudo Grabar";
+
+-- Nombre de archivo: Entity.iri
+-- Las entidades se manejan como tipos
+-- el tipo es un record y se especifica las propiedades del tipo
+-- La nomenclatura es PascalCase
+-- type solo declara el tipo, no instancia
+-- No se permite variables genericas, 
+-- por lo que si se requiere un mismo objeto con una propiedad disinta
+-- se debe declarar un nuevo tipo (caso ResponseXXX)
+-- Tampoco tiene herencia
+type Producto is record
+    Id: integer;
+    Name: string;
+    IsActive: booleantype;
+end record;
+
+type Config is record
+    Empresa: string;
+    Ruc: string;
+    Direccion: string;
+end record;
+
+type ResponseInt is record
+    Success : booleantype;
+    Data    : integer;
+    Message : string;
+end record;
+
+type ResponseStr is record
+    Success : booleantype;
+    Data    : string;
+    Message : string;
+end record;
+
+-- Nombre de archivo: Data.iri
+-- Las funciones y procedimientos se declaran como en Pascal
+-- La base de datos es SQLite por lo que se debe respetar la sintaxis
+function Especie_NuevoId : integer;
+lSQL    : string;
+lCode   : SysCode;
+lCon    : integer;
+lId     : integer;
+begin
+    lSQL:="SELECT IFNULL(MAX(ID),0)+1 FROM ESPECIE";
+    lCode:=DbExec(lSQL, lCon);
+    
+    if (lCode = SysOk) then
+      lId:= -1;
+    elsif (lCon < 1) then
+      lId:= 0;
+    else
+      DBColumnInt(lCon,1,lId);
+    end if;
+
+    DbFinalize(lCon);
+    return lId;
+end;
+
+function DAEspecie_Add(Request : Especie) : ResponseStr;
+lSQL    : string;
+lCon    : integer;
+lCode   : SysCode;
+lResponse  : ResponseStr;
+begin
+    lSQL:="INSERT INTO ESPECIE (ID,CODIGO,DESCRIP)VALUES("+IntegerToString(Request.id,0)+",'"+Request.codigo+"','"+Request.descrip+"')";
+    lCode:=DbExec(lSQL,lCon);
+    if(lCode = SysOk)then
+        lResponse.success:=booltrue;
+        lResponse.message:=MSJ_GEN_SAVE_OK;
+    else
+        lResponse.success:=boolfalse;
+        lResponse.message:=MSJ_GEN_SAVE_XER;
+    end if;
+    DbFinalize(lCon);
+    return lResponse;
+end;
+
+--Nombre de archivo: Business.iri
+function BREspecie_Add(Request : Especie) : ResponseStr;
+lID : integer;
+lResponseStr : ResponseStr;
+begin
+    lID:=Especie_NuevoID;
+    if(lID>0)then
+        Request.id:=lID;
+        ResponseStr:=DAEspecie_Add(Request);
+    else
+        ResponseStr.success:=boolfalse;
+        ResponseStr.message:= MSJ_GEN_SAVE_XID;
+    end if;
+    return ResponseStr;
+end;
+
+--Nombre de archivo: ProgramaDemo.src
+-- Ejeplo de un programa base
+-- Al inicio se declaran las variables globales
+-- Luego se declaran los includes de los archivos .iri
+-- Toda importación de archivos debe ser en orden ya que la compilación genera un solo archivo
+program ProgramaDemo;
+#include Variables.iri
+#include Entity.iri
+#include Data.iri
+#include Business.iri
+
+-- Este Handler es un evento que se ejecuta cuando se toca un widget
+-- Existen muchos Handlers los cuales están definidos en la guía de programación
+handler WidgetClicked;
+lResponse : ResponseStr;
+lEspecie  : Especie;
+begin
+    -- EventWidget es una variable global que contiene el widget que se tocó
+    -- Esta variables es del sistema y no se debe declarar
+    -- Los widgets se generan en el diseñador de la aplicación, el diseñador exporta
+    -- un archivo .iri que contiene los widgets y sus propiedades
+    -- El nombre del widget es el mismo que se define en el diseñador
+    if(EventWidget=lbl1)then
+        lEspecie.codigo:="0002";
+        lEspecie.descrip:="NUEVA ESPECIE";
+        lResponse:=BREspecie_Add(lEspecie);
+        DisplayStatus(lResponse.message);
+    end if;
+end;
+
+procedure MiProcedimiento(valor1: integer; valor2: string);
+suma: integer;
+begin
+    suma := valor1 + valor2;
+    DisplayStatus("La suma es: " + IntegerToString(suma, 0));
+end;
+
+begin
+    DisplayStatus("Bienvenidos");
+end ProgramaDemo;
